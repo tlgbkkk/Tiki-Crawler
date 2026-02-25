@@ -84,3 +84,16 @@ When the error count no longer decreases between runs, the remaining errors are 
 | `HTTP_404`             | Product not found — may be a fake 404 due to server-side rate limiting; retry later |
 | `HTTP_429`             | Too many requests — server explicitly throttling; wait longer before retrying |
 | `Failed_After_Retries` | Request failed after all retry attempts (timeout, connection error, etc.) |
+
+## 📊 Performance Estimate (200,000 IDs)
+
+Based on real runs with `CONCURRENCY_LIMIT=40`, `RATE_LIMIT=60`:
+
+| Run | IDs     | Duration | Errors     |
+|-----|---------|----------|------------|
+| First run | 200,000 | ~62 min | ~6,750     |
+| Retry #1 | ~6,750  | ~13 min | ~6,730     |
+| Retry #2 | ~6,730  | ~13 min | ~6,729     |
+| ... | ...     | ... | stabilizes |
+
+The error count stabilizes around **6,729 IDs** — these are either truly unavailable products or persistent 404s due to IP-level throttling.
