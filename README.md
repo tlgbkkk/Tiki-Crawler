@@ -1,8 +1,8 @@
-# Tiki Product Crawler
+# 🛒 Tiki Product Crawler
 
 Async crawler for fetching product data from the Tiki API, with data normalization and smart retry support.
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 src/
@@ -20,13 +20,13 @@ processed_data/ (gitignored, init on first run)
 └── error_001.json          # Failed IDs to retry later
 ```
 
-## Installation
+## ⚙️ Installation
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## Configuration
+## 🔧 Configuration
 
 Edit `config.py`:
 
@@ -38,7 +38,7 @@ Edit `config.py`:
 | `RATE_LIMIT` | `60` | Max requests per second |
 | `RETRIES` | `3` | Retry attempts per request |
 
-## Usage
+## 🏃 Run
 
 ```bash
 python src/main.py
@@ -49,12 +49,12 @@ Each run automatically:
 2. Combines new IDs from source + failed IDs from `error_*.json`
 3. Halves concurrency and rate when only retrying errors
 
-## Resume Behavior
+## ▶️ Resume Behavior
 
 - Interrupted mid-run (Ctrl+C, network drop) → buffers are flushed to disk immediately
 - Re-run → automatically resumes from where it left off, skipping already successful IDs
 
-## Retry Strategy
+## 🔁 Retry Strategy
 
 Tiki's API uses server-side bot protection that may return **fake 404s** for valid products when it detects high request volume from a single IP. This means error files may contain IDs that are actually fetchable — they just need to be retried later with a cooled-down IP.
 
@@ -66,7 +66,7 @@ Tiki's API uses server-side bot protection that may return **fake 404s** for val
 
 When the error count no longer decreases between runs, the remaining errors are likely either truly deleted/unavailable products or persistent IP blocks requiring a proxy.
 
-## Output Format
+## 📦 Output Format
 
 **success_*.json** — array of product objects from the Tiki API, with `description` and `short_description` normalized (HTML stripped)
 
@@ -79,8 +79,8 @@ When the error count no longer decreases between runs, the remaining errors are 
 ]
 ```
 
-| Reason | Description |
-|--------|-------------|
-| `HTTP_404` | Product not found — may be a fake 404 due to server-side rate limiting; retry later |
-| `HTTP_429` | Too many requests — server explicitly throttling; wait longer before retrying |
+| Status                 | Description |
+|------------------------|-------------|
+| `HTTP_404`             | Product not found — may be a fake 404 due to server-side rate limiting; retry later |
+| `HTTP_429`             | Too many requests — server explicitly throttling; wait longer before retrying |
 | `Failed_After_Retries` | Request failed after all retry attempts (timeout, connection error, etc.) |
