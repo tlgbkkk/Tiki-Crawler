@@ -4,7 +4,7 @@ import asyncio
 import os
 import time
 import orjson
-from crawl import crawl
+from crawl import crawl, crawl_sequential
 from config import SOURCE, OUTPUT_DIR
 
 
@@ -39,6 +39,12 @@ def load_remaining_ids():
                 ids.append(pid)
     return ids
 
+
+def delete_error_files():
+    for path in glob.glob(f"{OUTPUT_DIR}/error_*.json"):
+        os.remove(path)
+
+
 async def main():
     start_time = time.perf_counter()
 
@@ -63,18 +69,20 @@ async def main():
         source_label.append(f"{len(error_ids)} from errors")
     print(f"Crawling {len(all_ids)} IDs ({', '.join(source_label)})")
 
-    divisor = 2 if error_ids and not remaining_ids else 1
+    delete_error_files()
+    await crawl(all_ids)
 
-    if error_ids:
-        for path in glob.glob(f"{OUTPUT_DIR}/error_*.json"):
-            os.remove(path)
+    retry_ids = load_error_ids()
+    if retry_ids:
+        print(f"\nSequential retry | {len(retry_ids)} IDs | ~{len(retry_ids) * 2 / 60:.0f} mins estimated")
+        delete_error_files()
+        await crawl_sequential(retry_ids)
 
-    error_count = await crawl(all_ids, divisor)
-
+    final_errors = load_error_ids()
     elapsed = time.perf_counter() - start_time
-    print(f"\nDone | Errors: {error_count} | Time: {elapsed:.2f}s (~{elapsed / 60:.2f} mins)")
-    if error_count:
-        print("Run again later to retry the errors.")
+    print(f"\nDone | Errors: {len(final_errors)} | Time: {elapsed:.2f}s (~{elapsed / 60:.2f} mins)")
+    if final_errors:
+        print("Run again later to retry remaining errors.")
 
 
 if __name__ == "__main__":
