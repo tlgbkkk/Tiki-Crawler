@@ -4,7 +4,7 @@ import asyncio
 import os
 import time
 import orjson
-from crawl import crawl, crawl_sequential
+from crawl import crawl
 from config import SOURCE, OUTPUT_DIR
 
 
@@ -42,7 +42,10 @@ def load_remaining_ids():
 
 def delete_error_files():
     for path in glob.glob(f"{OUTPUT_DIR}/error_*.json"):
-        os.remove(path)
+        try:
+            os.remove(path)
+        except OSError:
+            pass
 
 
 async def main():
@@ -66,23 +69,36 @@ async def main():
     if remaining_ids:
         source_label.append(f"{len(remaining_ids)} from source")
     if error_ids:
-        source_label.append(f"{len(error_ids)} from errors")
+        source_label.append(f"{len(error_ids)} from previous errors")
     print(f"Crawling {len(all_ids)} IDs ({', '.join(source_label)})")
 
     delete_error_files()
     await crawl(all_ids)
+    MAX_MACRO_RETRIES = 3
+    WAIT_MINUTES = 20
 
-    retry_ids = load_error_ids()
-    if retry_ids:
-        print(f"\nSequential retry | {len(retry_ids)} IDs | ~{len(retry_ids) * 2 / 60:.0f} mins estimated")
+    for attempt in range(1, MAX_MACRO_RETRIES + 1):
+        current_errors = load_error_ids()
+
+        if not current_errors:
+            print(f"\n[Retry {attempt}/{MAX_MACRO_RETRIES}] Tuyệt vời! Không còn ID nào bị lỗi.")
+            break
+
+        print(f"\n--- VÒNG LẶP RETRY {attempt}/{MAX_MACRO_RETRIES} ---")
+        print(f"Phát hiện {len(current_errors)} ID lỗi. Tạm nghỉ {WAIT_MINUTES} phút trước khi thử lại...")
+
+        await asyncio.sleep(WAIT_MINUTES * 60)
+
         delete_error_files()
-        await crawl_sequential(retry_ids)
+
+        print(f"Bắt đầu crawl lại {len(current_errors)} ID lỗi...")
+        await crawl(current_errors)
 
     final_errors = load_error_ids()
     elapsed = time.perf_counter() - start_time
-    print(f"\nDone | Errors: {len(final_errors)} | Time: {elapsed:.2f}s (~{elapsed / 60:.2f} mins)")
+    print(f"\nDone | Final Errors: {len(final_errors)} | Total Time: {elapsed:.2f}s (~{elapsed / 60:.2f} mins)")
     if final_errors:
-        print("Run again later to retry remaining errors.")
+        print("Vẫn còn lỗi sót lại sau 3 lần retry. Hãy chạy lại script vào lúc khác.")
 
 
 if __name__ == "__main__":
