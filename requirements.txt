@@ -2,3 +2,4 @@ aiohttp
 orjson
 aiolimiter
 fake-useragent
+psycopg2-binary

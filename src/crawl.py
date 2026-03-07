@@ -5,17 +5,19 @@ import os
 import logging
 import glob
 import random
+import psycopg2
 import re
 from aiolimiter import AsyncLimiter
 from fake_useragent import UserAgent
+
 from transform import normalize
-from config import CONCURRENCY_LIMIT, RATE_LIMIT, OUTPUT_DIR, RETRIES
+from config import CONCURRENCY_LIMIT, RATE_LIMIT, OUTPUT_DIR, RETRIES, DATABASE, DATABASE_TABLE_NAME
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s", datefmt="%H:%M:%S")
 
 ua = UserAgent()
 
-RETRY_SUSPICIOUS = 10
+RETRY_SUSPICIOUS = 3
 FIELDS = {"id", "name", "url_key", "price", "description", "images"}
 
 
@@ -31,6 +33,30 @@ def save_to_file(data, prefix, index):
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     with open(filename, 'wb') as f:
         f.write(orjson.dumps(data))
+
+def load_to_database(conn, data):
+    query = f"""
+        INSERT INTO {DATABASE_TABLE_NAME} (id, name, url_key, price, description, images)
+        VALUES (%s, %s, %s, %s, %s, %s)
+    """
+
+    values = (
+        data.get('id'),
+        data.get('name'),
+        data.get('url_key'),
+        data.get('price'),
+        data.get('description'),
+        data.get('images')
+    )
+
+    try:
+        cur = conn.cursor()
+        cur.execute(query, values)
+        conn.commit()
+        cur.close()
+    except Exception as e:
+        conn.rollback()
+        print(f"Insertion error: {e}")
 
 
 def load_last_file(prefix):
@@ -89,10 +115,13 @@ async def _run(session, product_ids, sem, limiter, retries=RETRIES, jitter=False
     e_idx = 1
     total = len(product_ids)
 
+    conn = psycopg2.connect(**DATABASE)
+
     try:
         for coro in asyncio.as_completed([fetch_product(session, pid, sem, limiter, retries, jitter) for pid in product_ids]):
             is_success, result = await coro
             if is_success:
+                load_to_database(conn, result)
                 success_buffer.append(result)
                 if len(success_buffer) >= 1000:
                     save_to_file(success_buffer, "success", s_idx)

@@ -1,0 +1,8 @@
+CREATE TABLE products (
+	id BIGINT,
+	name TEXT,
+	url_key TEXT,
+	price BIGINT,
+	description TEXT,
+	images TEXT[]
+);

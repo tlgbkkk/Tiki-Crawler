@@ -84,8 +84,8 @@ async def main():
             print(f"\n[Retry {attempt}/{MAX_MACRO_RETRIES}] Tuyệt vời! Không còn ID nào bị lỗi.")
             break
 
-        print(f"\n--- VÒNG LẶP RETRY {attempt}/{MAX_MACRO_RETRIES} ---")
-        print(f"Phát hiện {len(current_errors)} ID lỗi. Tạm nghỉ {WAIT_MINUTES} phút trước khi thử lại...")
+        print(f"\n--- RETRY {attempt}/{MAX_MACRO_RETRIES} ---")
+        print(f"Phát hiện {len(current_errors)} ID lỗi. Cooldown {WAIT_MINUTES} phút trước khi thử lại...")
 
         await asyncio.sleep(WAIT_MINUTES * 60)
 
